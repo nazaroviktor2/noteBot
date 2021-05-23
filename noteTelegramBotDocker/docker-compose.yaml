@@ -4,11 +4,29 @@ version: '3.7'
 
 services:
     telegram:
+#        container_name: telegramNoteBot
+        env_file:
+            - ./config/telegram.env
         build: ./TelegramManager/
         environment: 
-            - TELEGRAM_API_TOKEN=${TELEGRAM_API_TOKEN}
+            - TELEGRAM_API_TOKEN:${TELEGRAM_API_TOKEN}
+            
+        restart: always
+        links: 
+            - database
+        volumes_from:
+            - database
+    
+       
+
+    database:
+#        container_name: dbNote
+        build: ./DatabaseManager/
         volumes:
-            - db-data:/TelegramManager/database
+            - db-data:/DatabaseManager
+        
+
+
 volumes:
     db-data:
 
