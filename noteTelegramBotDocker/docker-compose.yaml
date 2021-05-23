@@ -6,7 +6,11 @@ services:
     telegram:
         build: ./TelegramManager/
         environment: 
-            - TELEGRAM_API_TOKEN=''
+            - TELEGRAM_API_TOKEN=${TELEGRAM_API_TOKEN}
+        volumes:
+            - db-data:/TelegramManager/database
+volumes:
+    db-data:
 
      
 

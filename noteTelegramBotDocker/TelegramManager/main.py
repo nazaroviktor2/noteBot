@@ -8,7 +8,7 @@ from aiogram import Bot, Dispatcher, executor, types
 API_TOKEN = os.getenv("TELEGRAM_API_TOKEN")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-
+print("API TOKEN = ",API_TOKEN)
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
