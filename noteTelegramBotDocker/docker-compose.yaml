@@ -1,0 +1,15 @@
+version: '3.7'
+
+
+
+services:
+    telegram:
+        build: ./TelegramManager/
+        environment: 
+            - TELEGRAM_API_TOKEN=''
+
+     
+
+
+
+                    
