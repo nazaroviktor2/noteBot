@@ -2,27 +2,50 @@ from datetime import datetime
 import logging
 import os
 import re
-import sqlite3 as sq
+import psycopg2
+import configparser
 from aiogram import Bot, Dispatcher, executor, types
 
 API_TOKEN = os.getenv("TELEGRAM_API_TOKEN")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-print("API TOKEN = ",API_TOKEN)
+
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
-PATH_DB = "database/db.db"
+
+DATABASE = os.getenv('POSTGRES_DB')
+USER = os.getenv('POSTGRES_USER')
+PASSWORD = os.getenv('POSTGRES_PASSWORD')
+HOST = os.getenv("POSTGRES_DB_HOST")
+PORT = "5432"
+
 
 class NotFoundNote(Exception):
     def __init__(self, text):
         self.txt = text
 
 
-def delete(user_id, id_for_user):
-    with sq.connect(PATH_DB) as con:
+def init_database():
+    with psycopg2.connect(
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD,
+            host=HOST,
+            port=PORT) as con:
         cur = con.cursor()
+        cur.execute(open("init.sql", "r").read())
 
+
+def delete(user_id, id_for_user):
+    with psycopg2.connect(
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD,
+            host=HOST,
+            port=PORT) as con:
+
+        cur = con.cursor()
         cur.execute(f"SELECT id FROM note WHERE user_id = '{user_id}' AND id_for_user = '{id_for_user}'")
         if cur.fetchone() is None:
             raise NotFoundNote("Note not found")
@@ -32,7 +55,12 @@ def delete(user_id, id_for_user):
 
 def get_note(user_id):
     notes = []  # str [id date text]
-    with sq.connect(PATH_DB) as con:
+    with psycopg2.connect(
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD,
+            host=HOST,
+            port=PORT) as con:
         cur = con.cursor()
         cur.execute(f"SELECT id FROM users WHERE id = '{user_id}'")
         if cur.fetchone() is None:
@@ -45,36 +73,39 @@ def get_note(user_id):
             print(res)
             if res:
                 notes.append('''
-                id    дата        запись 
-                ''')
+                    id    дата        запись 
+                    ''')
             for e in res:
-                s, s2 = str(e[3]).split(" ")
-
-                notes.append(f"{e[4]}    {s}   {e[2]}")
-
+                date = datetime.strftime(e[4], '%d-%m-%Y')
+                notes.append(f"{e[2]}    {date}   {e[3]}")
 
     return notes
 
 
 def add_note(user_id, user_name, text, date):
-    with sq.connect(PATH_DB) as con:
+    with psycopg2.connect(
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD,
+            host=HOST,
+            port=PORT) as con:
         cur = con.cursor()
 
         cur.execute(f"SELECT id FROM users WHERE id = '{user_id}'")
         if cur.fetchone() is None:
-            cur.execute("INSERT INTO users ('id','name') VALUES (?,?)", (user_id, user_name))
+            cur.execute(f"INSERT INTO users (id,name) VALUES (%s,%s)", (user_id, user_name))
             print("Пользователь создан!")
         else:
             print("Такой пользователь уже есть ")
         cur.execute(f"SELECT id FROM note WHERE user_id = '{user_id}'")
         if cur.fetchone() is None:
-            cur.execute("INSERT INTO note ('user_id',id_for_user,'text','date') VALUES (?,?,?,?)",
+            cur.execute("INSERT INTO note (user_id,id_for_user,text,date) VALUES (%s,%s,%s,%s)",
                         (user_id, 1, text, date))
         else:
             cur.execute(f"SELECT MAX(id_for_user) FROM note WHERE user_id = '{user_id}'")
             id_for_user = int(cur.fetchone()[0])
 
-            cur.execute("INSERT INTO note ('user_id',id_for_user,'text','date') VALUES (?,?,?,?)",
+            cur.execute("INSERT INTO note (user_id,id_for_user,text,date) VALUES (%s,%s,%s,%s)",
                         (user_id, id_for_user + 1, text, date))
 
 
@@ -188,5 +219,11 @@ async def send_get_note(message: types.Message):
 
 
 if __name__ == '__main__':
-    print("Start")
+    # logging.debug((u"START"))
+    # logging.DEBUG((u"API TOKEN = ", API_TOKEN))
+    # logging.DEBUG((u"DATABASE  =", DATABASE))
+    # logging.DEBUG((u"USER  =", USER))
+    # logging.DEBUG((u"PASSWORD  =", PASSWORD))
+    # logging.DEBUG((u"HOST  =", HOST))
+    init_database()
     executor.start_polling(dp, skip_updates=True)
